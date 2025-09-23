@@ -1,4 +1,3 @@
-// pages/api/solicitacao.js
 import nodemailer from 'nodemailer';
 import formidable from 'formidable';
 
@@ -23,19 +22,28 @@ export default async function handler(req, res) {
         });
     });
     
-    // NOVO: Processa a lista de itens recebida do formulário
+    // CORREÇÃO: Transforma os campos que são arrays de um único item em strings
+    const getFieldValue = (value) => (Array.isArray(value) ? value[0] : value);
+    
+    const data = getFieldValue(fields.data);
+    const setor = getFieldValue(fields.setor);
+    const requisitadoPor = getFieldValue(fields.requisitadoPor);
+    const urgencia = getFieldValue(fields.urgencia);
+    const justificativa = getFieldValue(fields.justificativa);
+    const copiaEmail = getFieldValue(fields.copiaEmail);
+    const itemCount = parseInt(getFieldValue(fields.item_count), 10);
+    
     const items = [];
-    const itemCount = parseInt(fields.item_count, 10);
-    for (let i = 0; i < itemCount; i++) {
-        if (fields[`servico_${i}`]) {
-            items.push({
-                servico: fields[`servico_${i}`],
-                quantidade: fields[`quantidade_${i}`],
-            });
+    if (!isNaN(itemCount)) {
+        for (let i = 0; i < itemCount; i++) {
+            const servico = getFieldValue(fields[`servico_${i}`]);
+            const quantidade = getFieldValue(fields[`quantidade_${i}`]);
+            if (servico) {
+                items.push({ servico, quantidade });
+            }
         }
     }
-
-    // NOVO: Gera uma tabela HTML com os itens para o corpo do e-mail
+    
     const itemsHtml = `
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
@@ -68,31 +76,30 @@ export default async function handler(req, res) {
     const attachments = [];
     if (files.foto && files.foto.size > 0) {
         attachments.push({
-            filename: files.foto.originalFilename,
-            path: files.foto.filepath,
+            filename: getFieldValue(files.foto).originalFilename,
+            path: getFieldValue(files.foto).filepath,
         });
     }
 
-    // ALTERADO: Corpo do e-mail agora inclui a tabela de itens
     const mailOptions = {
-      from: `"${fields.requisitadoPor || 'Sistema de Compras'}" <${process.env.EMAIL_FROM}>`,
+      from: `"${requisitadoPor || 'Sistema de Compras'}" <${process.env.EMAIL_FROM}>`,
       to: process.env.EMAIL_TO,
-      cc: fields.copiaEmail || '',
-      subject: `Nova Solicitação de Compra - Setor: ${fields.setor}`,
+      cc: copiaEmail || '',
+      subject: `Nova Solicitação de Compra - Setor: ${setor}`,
       html: `
         <h1>Nova Solicitação de Compras</h1>
-        <p><strong>Data:</strong> ${fields.data}</p>
-        <p><strong>Setor:</strong> ${fields.setor}</p>
-        <p><strong>Requisitado por:</strong> ${fields.requisitadoPor}</p>
-        <p><strong>Nível de Urgência:</strong> ${fields.urgencia}</p>
+        <p><strong>Data:</strong> ${data}</p>
+        <p><strong>Setor:</strong> ${setor}</p>
+        <p><strong>Requisitado por:</strong> ${requisitadoPor}</p>
+        <p><strong>Nível de Urgência:</strong> ${urgencia}</p>
         <hr>
         <h3>Itens Solicitados:</h3>
         ${itemsHtml}
         <hr>
         <h3>Justificativa:</h3>
-        <p>${fields.justificativa.replace(/\n/g, '<br>')}</p>
+        <p>${(justificativa || '').replace(/\n/g, '<br>')}</p>
         <br>
-        <p><em>Cópia enviada para: ${fields.copiaEmail || 'N/A'}</em></p>
+        <p><em>Cópia enviada para: ${copiaEmail || 'N/A'}</em></p>
       `,
       attachments: attachments,
     };
