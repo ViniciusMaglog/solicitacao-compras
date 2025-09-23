@@ -12,19 +12,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Método não permitido' });
   }
 
-  const form = formidable({ multiples: true });
+  const form = formidable({ multiples: true, allowEmptyFiles: true, minFileSize: 0 });
 
   try {
     const { fields, files } = await new Promise((resolve, reject) => {
-        form.parse(req, (err, fields, files) => {
-            if (err) reject(err);
-            resolve({ fields, files });
-        });
+      form.parse(req, (err, fields, files) => {
+        if (err) reject(err);
+        resolve({ fields, files });
+      });
     });
-    
+
     // CORREÇÃO: Transforma os campos que são arrays de um único item em strings
     const getFieldValue = (value) => (Array.isArray(value) ? value[0] : value);
-    
+
     const data = getFieldValue(fields.data);
     const setor = getFieldValue(fields.setor);
     const requisitadoPor = getFieldValue(fields.requisitadoPor);
@@ -32,18 +32,18 @@ export default async function handler(req, res) {
     const justificativa = getFieldValue(fields.justificativa);
     const copiaEmail = getFieldValue(fields.copiaEmail);
     const itemCount = parseInt(getFieldValue(fields.item_count), 10);
-    
+
     const items = [];
     if (!isNaN(itemCount)) {
-        for (let i = 0; i < itemCount; i++) {
-            const servico = getFieldValue(fields[`servico_${i}`]);
-            const quantidade = getFieldValue(fields[`quantidade_${i}`]);
-            if (servico) {
-                items.push({ servico, quantidade });
-            }
+      for (let i = 0; i < itemCount; i++) {
+        const servico = getFieldValue(fields[`servico_${i}`]);
+        const quantidade = getFieldValue(fields[`quantidade_${i}`]);
+        if (servico) {
+          items.push({ servico, quantidade });
         }
+      }
     }
-    
+
     const itemsHtml = `
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
@@ -74,11 +74,14 @@ export default async function handler(req, res) {
     });
 
     const attachments = [];
-    if (files.foto && files.foto.size > 0) {
-        attachments.push({
-            filename: getFieldValue(files.foto).originalFilename,
-            path: getFieldValue(files.foto).filepath,
-        });
+    const fotoFile = getFieldValue(files.foto); // Pega o objeto do arquivo de dentro do array
+
+    // Agora, a verificação usa a variável 'fotoFile' que contém o objeto correto
+    if (fotoFile && fotoFile.size > 0) {
+      attachments.push({
+        filename: fotoFile.originalFilename,
+        path: fotoFile.filepath,
+      });
     }
 
     const mailOptions = {
