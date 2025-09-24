@@ -84,10 +84,10 @@ export default function HomePage() {
               <label htmlFor="setor" className={labelStyles}>Setor *</label>
               <select id="setor" name="setor" required className={inputStyles}>
                 <option value="">Selecione seu setor</option>
-                <option value="Financeiro">Financeiro</option>
-                <option value="TI">TI</option>
-                <option value="RH">RH</option>
-                <option value="Marketing">Marketing</option>
+                <option value="Logistica">Logística</option>
+                <option value="Transporte">Transporte</option>
+                <option value="Administrativo">Administrativo</option>
+                <option value="Diretoria">Diretoria</option>
               </select>
             </div>
             <div>
