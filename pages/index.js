@@ -9,7 +9,6 @@ export default function SolicitacaoComprasPage() {
   const [dataAtual, setDataAtual] = useState('');
 
   useEffect(() => {
-    // Define a data atual no formato YYYY-MM-DD
     setDataAtual(new Date().toISOString().split('T')[0]);
   }, []);
 
@@ -34,28 +33,34 @@ export default function SolicitacaoComprasPage() {
 
     const formData = new FormData(event.target);
 
-    // Compressão de Imagem
-    const imageFile = formData.get('foto');
-    if (imageFile && imageFile.size > 0) {
-      try {
-        const compressedFile = await imageCompression(imageFile, { 
-            maxSizeMB: 1, 
-            maxWidthOrHeight: 1920, 
-            useWebWorker: true 
-        });
-        formData.set('foto', compressedFile, compressedFile.name);
-      } catch (error) {
-        setStatus({ submitting: false, success: false, error: 'Erro ao processar imagem.' });
-        return;
+    // Lógica de Arquivo/Imagem Ajustada
+    const file = formData.get('foto');
+    if (file && file.size > 0) {
+      // Só tenta comprimir se for uma imagem
+      if (file.type.startsWith('image/')) {
+        try {
+          const compressedFile = await imageCompression(file, { 
+              maxSizeMB: 1, 
+              maxWidthOrHeight: 1920, 
+              useWebWorker: true 
+          });
+          formData.set('foto', compressedFile, compressedFile.name);
+        } catch (error) {
+          console.error('Erro na compressão, enviando original:', error);
+          // Em caso de erro, o formData mantém o arquivo original automaticamente
+        }
+      } else {
+        // Validação opcional de tamanho para arquivos que não são imagem (ex: 10MB)
+        const maxSizeBytes = 10 * 1024 * 1024;
+        if (file.size > maxSizeBytes) {
+          setStatus({ submitting: false, success: false, error: 'O arquivo é muito grande (Máximo 10MB).' });
+          return;
+        }
       }
     }
     
-    // Remove campos arrays originais para inserir serializados
     formData.delete('servico');
     formData.delete('quantidade');
-    
-    // IMPORTANTE: Como o campo data está disabled, ele não é enviado automaticamente pelo FormData.
-    // Precisamos adicionar manualmente o valor do estado dataAtual.
     formData.set('data', dataAtual);
     
     items.forEach((item, index) => {
@@ -79,19 +84,10 @@ export default function SolicitacaoComprasPage() {
     }
   };
 
-  // --- ESTILOS PADRONIZADOS ---
   const labelStyles = "block font-bold text-gray-700 dark:text-gray-300 text-xs uppercase mb-1";
-  
-  // Estilo Geral
   const baseInputStyles = "border rounded focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm border-gray-300 disabled:bg-gray-200 disabled:dark:bg-gray-800 disabled:text-gray-400 disabled:dark:text-gray-600 disabled:cursor-not-allowed";
-  
-  // Input Padrão (Mobile e Form)
   const inputStyles = `w-full px-3 py-3 ${baseInputStyles} bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white`;
-
-  // Input Tabela (Desktop)
   const tableInputStyles = `w-full h-10 px-2 ${baseInputStyles} bg-transparent dark:text-white dark:border-gray-600`;
-
-  // Select Styles
   const selectStyles = `w-full px-3 py-3 ${baseInputStyles} bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white`;
 
   return (
@@ -100,7 +96,6 @@ export default function SolicitacaoComprasPage() {
       
       <div className="w-full max-w-[95%] mx-auto bg-white dark:bg-gray-800 p-4 md:p-8 rounded-lg shadow-xl border-t-8 border-cyan-900 dark:border-cyan-600">
         
-        {/* LOGO */}
         <div className="flex justify-center mb-4 md:mb-6">
             <Image src="/logo.png" alt="Logo Maglog" width={180} height={60} priority className="w-32 md:w-48 h-auto" />
         </div>
@@ -111,11 +106,9 @@ export default function SolicitacaoComprasPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Dados Iniciais */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border border-gray-300 dark:border-gray-600 p-4 rounded bg-gray-50 dark:bg-gray-700/30">
              <div>
                 <label className={labelStyles}>Data (Automática)</label>
-                {/* DATA AGORA FIXA E DESABILITADA */}
                 <input 
                     type="date" 
                     name="data" 
@@ -142,7 +135,6 @@ export default function SolicitacaoComprasPage() {
              </div>
           </div>
 
-          {/* --- TABELA DESKTOP --- */}
           <div className="hidden md:block overflow-x-auto border border-gray-300 dark:border-gray-600 rounded">
             <table className="w-full text-sm border-collapse min-w-[600px]">
                 <thead className="bg-cyan-900 dark:bg-cyan-950 text-white">
@@ -186,7 +178,6 @@ export default function SolicitacaoComprasPage() {
             </table>
           </div>
 
-          {/* --- CARDS MOBILE --- */}
           <div className="block md:hidden space-y-4">
             <h3 className="font-bold text-cyan-900 dark:text-cyan-400 text-lg border-b border-gray-300 dark:border-gray-700 pb-2">Itens da Compra</h3>
             {items.map((item, index) => (
@@ -209,10 +200,8 @@ export default function SolicitacaoComprasPage() {
             ))}
           </div>
 
-          {/* Botão Adicionar */}
           <button type="button" onClick={handleAddItem} className="w-full md:w-auto mt-2 text-sm bg-cyan-600 text-white px-6 py-3 rounded hover:bg-cyan-700 transition-colors font-bold">+ Adicionar Item</button>
 
-          {/* Justificativa e Urgência */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                   <label className={labelStyles}>Justificativa / Detalhes</label>
@@ -221,22 +210,25 @@ export default function SolicitacaoComprasPage() {
               <div className="space-y-6">
                   <div>
                       <label className={labelStyles}>Nível de Urgência</label>
-                      <select name="urgencia" className={selectStyles}>
+                      <select name="urgencia" className={selectStyles} defaultValue="Media">
                           <option value="Baixa">Baixa</option>
-                          <option value="Media" selected>Média</option>
+                          <option value="Media">Média</option>
                           <option value="Alta">Alta</option>
                       </select>
                   </div>
                   
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 border border-yellow-200 dark:border-yellow-700 rounded">
-                      <label className={labelStyles}>Anexar Foto / Arquivo (Opcional)</label>
-                      <input name="foto" type="file" accept="image/*" className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-cyan-100 dark:file:bg-cyan-900 file:text-cyan-700 dark:file:text-cyan-300 hover:file:bg-cyan-200 dark:hover:file:bg-cyan-800" />
+                      <label className={labelStyles}>Anexar Foto ou Arquivo (Opcional)</label>
+                      <input name="foto" type="file" accept="*/*" className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-cyan-100 dark:file:bg-cyan-900 file:text-cyan-700 dark:file:text-cyan-300 hover:file:bg-cyan-200 dark:hover:file:bg-cyan-800" />
                   </div>
               </div>
           </div>
 
           <div className="border border-gray-300 dark:border-gray-600 p-4 rounded bg-white dark:bg-gray-800">
-            <div className="flex items-center"><input type="checkbox" id="enviarCopia" name="enviarCopia" className="h-5 w-5 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500" /><label htmlFor="enviarCopia" className="ml-2 block text-sm text-gray-900 dark:text-gray-200">Enviar cópia para seu e-mail</label></div>
+            <div className="flex items-center">
+                <input type="checkbox" id="enviarCopia" name="enviarCopia" className="h-5 w-5 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500" />
+                <label htmlFor="enviarCopia" className="ml-2 block text-sm text-gray-900 dark:text-gray-200">Enviar cópia para seu e-mail</label>
+            </div>
             <input type="email" name="copiaEmail" className={`${inputStyles} mt-3`} placeholder="seu@email.com" />
           </div>
 
